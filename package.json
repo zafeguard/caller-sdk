@@ -1,5 +1,5 @@
 {
-  "name": "caller-sdk",
+  "name": "@zafeguard/caller-sdk",
   "version": "0.1.0",
   "description": "Caller SDK",
   "main": "dist/index.js",
