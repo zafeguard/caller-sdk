@@ -5,7 +5,7 @@ TypeScript SDK for calling components via the Caller API.
 ## Installation
 
 ```bash
-npm install caller-sdk
+npm install @zafeguard/caller-sdk
 ```
 
 ## Setup
