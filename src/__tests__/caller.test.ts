@@ -1,9 +1,13 @@
 import axios, { AxiosError, AxiosHeaders } from 'axios';
-import { CallerSDK } from '@/bootstrap/caller';
+import { WorkspaceClient } from '@/bootstrap/caller';
 import { CallBuilder } from '@/bootstrap/call-builder';
 import { ComponentModule } from '@/generated/enums';
 import { CallerSDKError } from '@/errors';
 import type { ExecuteComponentResponse } from '@/types';
+
+// Alias kept for minimal churn — the SDK class was renamed from CallerSDK to WorkspaceClient.
+const CallerSDK = WorkspaceClient;
+type CallerSDK = InstanceType<typeof WorkspaceClient>;
 
 jest.mock('axios', () => {
   const actual = jest.requireActual('axios');
