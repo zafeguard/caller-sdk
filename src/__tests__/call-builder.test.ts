@@ -187,6 +187,23 @@ describe('CallBuilder.promise', () => {
     });
   });
 
+  it('falls back to a default message when sync FAILED execution has undefined error', async () => {
+    // JSON.stringify(undefined) returns undefined, exercising the
+    // `?? 'Component execution failed'` fallback branch.
+    const submit = jest.fn().mockResolvedValue(
+      mockExecResponse({
+        status: 'FAILED',
+        completed: true,
+        error: undefined,
+      }),
+    );
+    const builder = makeBuilder(submit);
+
+    await expect(builder.promise()).rejects.toMatchObject({
+      errors: [{ code: 'EXECUTION_FAILED', message: 'Component execution failed' }],
+    });
+  });
+
   it('handles multi-chunk SSE delivery and parses split events', async () => {
     const submit = jest.fn().mockResolvedValue(mockExecResponse());
     const builder = makeBuilder(submit);
@@ -389,6 +406,38 @@ describe('CallBuilder.promise', () => {
     await expect(builder.promise()).rejects.toMatchObject({
       errors: [{ code: 'EXECUTION_FAILED', message: 'rpc-down' }],
     });
+  });
+
+  it('falls back to a default message when SSE FAILED event has no error field', async () => {
+    // JSON.stringify(undefined) returns undefined, so the
+    // `?? 'Component execution failed'` fallback is taken.
+    const submit = jest.fn().mockResolvedValue(mockExecResponse());
+    const builder = makeBuilder(submit);
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      body: streamFromText(
+        `data: ${JSON.stringify({ status: 'FAILED' })}\n\n`,
+      ),
+    } as any);
+
+    await expect(builder.promise()).rejects.toMatchObject({
+      errors: [{ code: 'EXECUTION_FAILED', message: 'Component execution failed' }],
+    });
+  });
+
+  it('treats non-object thrown values as non-abort errors and rethrows them', async () => {
+    // Hits the `typeof err !== 'object'` branch of isAbortError.
+    const submit = jest.fn().mockResolvedValue(mockExecResponse());
+    const builder = makeBuilder(submit);
+
+    // Throw a string — not an object — to exercise the early-return branch.
+    mockFetch.mockImplementation(() => {
+      // eslint-disable-next-line @typescript-eslint/no-throw-literal
+      throw 'string-error';
+    });
+
+    await expect(builder.promise()).rejects.toBe('string-error');
   });
 
   it('rethrows non-abort errors thrown by fetch', async () => {

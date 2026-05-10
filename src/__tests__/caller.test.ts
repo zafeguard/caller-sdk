@@ -1,8 +1,10 @@
 import axios, { AxiosError, AxiosHeaders } from 'axios';
+import { z } from 'zod';
 import { WorkspaceClient } from '@/bootstrap/caller';
 import { CallBuilder } from '@/bootstrap/call-builder';
 import { ComponentModule } from '@/generated/enums';
 import { CallerSDKError } from '@/errors';
+import { validationSchemas } from '@/generated/schemas';
 import type { ExecuteComponentResponse } from '@/types';
 
 // Alias kept for minimal churn — the SDK class was renamed from CallerSDK to WorkspaceClient.
@@ -128,6 +130,27 @@ describe('CallerSDK', () => {
       expect(mockPost).not.toHaveBeenCalled();
     });
 
+    it('should default input and config to empty objects when omitted', async () => {
+      // Components like GENERATE_AGE_ENCRYPTION accept an empty input — call
+      // with only the module argument to exercise the default-value branches
+      // for both `input` and `config`.
+      mockPost.mockResolvedValue({ data: mockExecResponse() });
+
+      // Cast through `any` because the public typed surface requires the
+      // input argument; this ensures the runtime defaults are reachable.
+      await (sdk as any).call(ComponentModule.GENERATE_AGE_ENCRYPTION).execute();
+
+      expect(mockPost).toHaveBeenCalledWith(
+        '/v1/sdk/components',
+        {
+          module: 'GENERATE_AGE_ENCRYPTION',
+          input: {},
+          config: {},
+        },
+        { headers: { 'X-Api-Key': 'test-api-key' } },
+      );
+    });
+
     it('should throw CallerSDKError synchronously when required input is missing', () => {
       expect(() =>
         sdk.call(ComponentModule.GET_EVM_DERIVATION_PATH, {} as any),
@@ -191,6 +214,47 @@ describe('CallerSDK', () => {
       } catch (e) {
         const err = e as CallerSDKError;
         expect(err.errors.length).toBeGreaterThanOrEqual(2);
+      }
+    });
+
+    it('should throw CallerSDKError synchronously when config validation fails', () => {
+      // The auto-generated config schemas are all `z.object({})` today, so
+      // the config-validation branch only fires if a future component adds a
+      // strict config schema. Stub one in to exercise the branch.
+      const original = validationSchemas[ComponentModule.GET_EVM_DERIVATION_PATH];
+      const strictConfig = z.object({ region: z.enum(['us', 'eu']) });
+      (validationSchemas as Record<ComponentModule, { input: z.ZodType; config: z.ZodType }>)[ComponentModule.GET_EVM_DERIVATION_PATH] = {
+        input: original.input,
+        config: strictConfig as unknown as z.ZodType,
+      };
+
+      try {
+        expect(() =>
+          sdk.call(
+            ComponentModule.GET_EVM_DERIVATION_PATH,
+            { accountIndex: 0, changeIndex: 0, addressIndex: 0 },
+            { region: 'mars' } as any,
+          ),
+        ).toThrow(CallerSDKError);
+
+        try {
+          sdk.call(
+            ComponentModule.GET_EVM_DERIVATION_PATH,
+            { accountIndex: 0, changeIndex: 0, addressIndex: 0 },
+            {} as any,
+          );
+          fail('Expected error');
+        } catch (e) {
+          const err = e as CallerSDKError;
+          expect(err.message).toBe(
+            'Validation failed for GET_EVM_DERIVATION_PATH config',
+          );
+          expect(err.errors.length).toBeGreaterThan(0);
+        }
+
+        expect(mockPost).not.toHaveBeenCalled();
+      } finally {
+        (validationSchemas as Record<ComponentModule, { input: z.ZodType; config: z.ZodType }>)[ComponentModule.GET_EVM_DERIVATION_PATH] = original;
       }
     });
   });

@@ -262,6 +262,95 @@ describe('WorkspaceClient namespaces', () => {
       expect(onError).not.toHaveBeenCalled();
     });
 
+    it('exits the read loop when the stream ends without a terminal event', async () => {
+      // Drives the `if (done) break` branch — the server closes the
+      // connection without ever emitting COMPLETED or FAILED.
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        body: streamFromText(
+          `data: ${JSON.stringify({ id: 'e', status: 'EXECUTING', output: null, error: null, timestamp: 't' })}\n\n`,
+        ),
+      } as any);
+
+      const events: ExecutionStreamEvent[] = [];
+      const onError = jest.fn();
+      sdk.execution.stream('e', {
+        onUpdate: (e) => {
+          events.push(e);
+        },
+        onError,
+      });
+
+      // Wait long enough for the read loop to finish naturally.
+      await new Promise((r) => setTimeout(r, 30));
+      expect(events.map((e) => e.status)).toEqual(['EXECUTING']);
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('aggregates multi-line `data:` fields with embedded newlines', async () => {
+      // Two consecutive `data:` lines are concatenated with a literal \n,
+      // exercising the truthy branch of `dataLine ? '\n' : ''`.
+      const json = JSON.stringify({
+        id: 'e',
+        status: 'COMPLETED',
+        output: { ok: true },
+        error: null,
+        timestamp: 't',
+      });
+      const half = Math.floor(json.length / 2);
+      // Multi-line `data:` events are concatenated with `\n`, which would
+      // normally break JSON parsing — so use a known multi-line-but-valid
+      // JSON shape: split on a non-meaningful boundary then recombine.
+      // Easiest: encode the full event on one line, but precede it with an
+      // earlier event whose `data:` payload spans two lines (gibberish that
+      // fails JSON.parse and is harmlessly discarded).
+      const text =
+        `data: line-one\n` +
+        `data: line-two\n` +
+        `\n` +
+        `data: ${json.slice(0, half)}` +
+        `${json.slice(half)}\n\n`;
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        body: streamFromText(text),
+      } as any);
+
+      await new Promise<void>((resolve) => {
+        sdk.execution.stream('e', {
+          onUpdate: (e) => {
+            if (e.status === 'COMPLETED') resolve();
+          },
+        });
+      });
+    });
+
+    it('silently ignores SSE comment lines and event/id metadata lines', async () => {
+      // Lines that don't start with `data: ` and aren't blank fall through
+      // both branches of the dispatcher — exercises the implicit else.
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        body: streamFromText(
+          `: heartbeat\n` +
+            `event: status\n` +
+            `id: 42\n` +
+            `retry: 1000\n` +
+            `data: ${JSON.stringify({ id: 'e', status: 'COMPLETED', output: {}, error: null, timestamp: 't' })}\n\n`,
+        ),
+      } as any);
+
+      const events: ExecutionStreamEvent[] = [];
+      await new Promise<void>((resolve) => {
+        sdk.execution.stream('e', {
+          onUpdate: (e) => {
+            events.push(e);
+            if (e.status === 'COMPLETED') resolve();
+          },
+        });
+      });
+      expect(events.map((e) => e.status)).toEqual(['COMPLETED']);
+    });
+
     it('handles missing baseURL by treating as empty string', async () => {
       mockedCreate.mockReturnValueOnce({
         get: mockGet,

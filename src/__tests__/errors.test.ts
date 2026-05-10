@@ -118,6 +118,23 @@ describe('CallerSDKError', () => {
       expect(caught).toBeInstanceOf(CallerSDKError);
       expect(caught?.message).toBe('test error');
     });
+
+    it('should still construct when Error.captureStackTrace is unavailable', () => {
+      const original = Error.captureStackTrace;
+      try {
+        // Simulate a non-V8 environment (e.g. Firefox/Safari) where
+        // Error.captureStackTrace does not exist. Exercises the false branch
+        // of the runtime guard in the constructor.
+        delete (Error as unknown as { captureStackTrace?: unknown }).captureStackTrace;
+
+        const error = new CallerSDKError('no captureStackTrace');
+        expect(error).toBeInstanceOf(CallerSDKError);
+        expect(error.message).toBe('no captureStackTrace');
+        expect(error.stack).toBeDefined();
+      } finally {
+        (Error as unknown as { captureStackTrace?: unknown }).captureStackTrace = original;
+      }
+    });
   });
 
   describe('fromAxiosError', () => {

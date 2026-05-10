@@ -430,6 +430,56 @@ describe('WorkflowClient', () => {
       expect(url).toBe('https://api.example.com/v1/sdk/workflows/executions/run-9/stream');
     });
 
+    it('exits the read loop when the stream ends without a terminal status', async () => {
+      // Exercises the `if (done) break` branch — the server closes the
+      // connection while only emitting non-terminal updates.
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        body: streamFromText(
+          `data: ${JSON.stringify({ id: 'r', status: 'EXECUTING', output: {}, timestamp: 't' })}\n`,
+        ),
+      } as any);
+
+      const events: RunStreamEvent[] = [];
+      const onError = jest.fn();
+      workflow.stream('r', {
+        onUpdate: (e: RunStreamEvent) => {
+          events.push(e);
+        },
+        onError,
+      });
+
+      // Allow the read loop to drain and exit naturally.
+      await new Promise((r) => setTimeout(r, 30));
+      expect(events.map((e) => e.status)).toEqual(['EXECUTING']);
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('skips lines that do not start with `data: `', async () => {
+      // Exercises the `!line.startsWith('data: ')` continue branch.
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        body: streamFromText(
+          `event: status\n` +
+            `id: 1\n` +
+            `: comment line\n` +
+            `data: ${JSON.stringify({ id: 'r', status: 'COMPLETED', output: {}, timestamp: 't' })}\n`,
+        ),
+      } as any);
+
+      const events: RunStreamEvent[] = [];
+      await new Promise<void>((resolve) => {
+        workflow.stream('r', {
+          onUpdate: (e: RunStreamEvent) => {
+            events.push(e);
+            if (e.status === 'COMPLETED') resolve();
+          },
+        });
+      });
+
+      expect(events.map((e) => e.status)).toEqual(['COMPLETED']);
+    });
+
     it('handles missing baseURL by treating it as empty', async () => {
       mockedCreate.mockReturnValueOnce({
         get: mockGet,
