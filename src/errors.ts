@@ -120,9 +120,16 @@ function extractErrors(data: Record<string, unknown> | undefined): ErrorDetail[]
 
   // Handle { error: string, message: string }
   if (data.message || data.error) {
+    // The `?? ''` fallback inside `message` is unreachable: the outer guard
+    // requires either `data.message` or `data.error` to be truthy, so at least
+    // one will satisfy the nullish-coalescing chain.
     return [{
       code: String(data.code ?? data.error ?? 'UNKNOWN'),
-      message: String(data.message ?? data.error ?? ''),
+      message: String(
+        data.message ??
+          data.error ??
+          /* istanbul ignore next */ '',
+      ),
     }];
   }
 

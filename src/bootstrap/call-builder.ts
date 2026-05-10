@@ -261,6 +261,10 @@ async function waitViaSSE<Output>(
       // SSE events are delimited by blank lines (\n\n).
       // Split on newlines, keeping the last (potentially incomplete) line.
       const lines = buffer.split('\n');
+      // `String.prototype.split` always returns a non-empty array, so
+      // `lines.pop()` is guaranteed to be a string. The `?? ''` is a defensive
+      // fallback that cannot be reached in practice.
+      /* istanbul ignore next */
       buffer = lines.pop() ?? '';
 
       let dataLine = '';
@@ -283,13 +287,13 @@ async function waitViaSSE<Output>(
 
           if (event.status === 'COMPLETED') {
             clearTimeout(timer);
-            reader.cancel().catch(() => {});
+            reader.cancel().catch(/* istanbul ignore next */ () => {});
             return event.output as Output;
           }
 
           if (event.status === 'FAILED') {
             clearTimeout(timer);
-            reader.cancel().catch(() => {});
+            reader.cancel().catch(/* istanbul ignore next */ () => {});
             const errMsg =
               typeof event.error === 'string'
                 ? event.error

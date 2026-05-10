@@ -214,11 +214,18 @@ export class WorkflowClient {
       const sub = this.stream(runId, {
         onUpdate: (event) => {
           if (!TERMINAL_STATUSES.has(event.status)) return;
+          // Defensive guard: the timer is always set synchronously after
+          // `this.stream(...)` returns, so by the time any event fires it is
+          // never null. The else branch is unreachable in practice.
+          /* istanbul ignore else */
           if (timer) clearTimeout(timer);
           // Fetch the final run detail to get stage breakdown
           this.execution.get(runId).then(resolve).catch(reject);
         },
         onError: (err) => {
+          // Same defensive guard as above — `timer` is always set before
+          // any onError can fire.
+          /* istanbul ignore else */
           if (timer) clearTimeout(timer);
           reject(err);
         },

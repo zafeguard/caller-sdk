@@ -238,6 +238,10 @@ class WorkspaceClientImpl extends Client {
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
+            // `String.prototype.split` always returns a non-empty array, so
+            // `lines.pop()` is guaranteed to be a string. The `?? ''` is a
+            // defensive fallback that cannot be reached in practice.
+            /* istanbul ignore next */
             buffer = lines.pop() ?? '';
 
             let dataLine = '';
