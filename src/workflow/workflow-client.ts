@@ -45,11 +45,11 @@ export interface RunStreamHandlers {
  *
  * @example
  * ```ts
- * import { WorkflowClient } from 'caller-sdk';
+ * import { WorkflowClient } from '@zafeguard/caller-sdk';
  *
  * const workflow = new WorkflowClient({
- *   apiKey: process.env.WR_API_KEY!,
- *   workflowId: process.env.WR_WORKFLOW_ID!,
+ *   apiKey: process.env.ZAFEGUARD_API_KEY!,
+ *   workflowId: process.env.ZAFEGUARD_WORKFLOW_ID!,
  * });
  *
  * // Trigger and wait until done

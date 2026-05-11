@@ -347,7 +347,7 @@ class WorkspaceClientImpl extends Client {
  *
  * ### Quick start
  * ```ts
- * import { WorkspaceClient, ComponentModule } from 'caller-sdk';
+ * import { WorkspaceClient, ComponentModule } from '@zafeguard/caller-sdk';
  *
  * const workspace = new WorkspaceClient({ apiKey: 'wrk_…' });
  *

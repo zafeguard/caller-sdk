@@ -38,7 +38,7 @@ This automatically runs code generation (`postinstall`) which:
 ## Usage
 
 ```typescript
-import { CallerSDK, CallerSDKError, ComponentModule } from 'caller-sdk';
+import { CallerSDK, CallerSDKError, ComponentModule } from '@zafeguard/caller-sdk';
 
 const sdk = new CallerSDK({
   apiKey: 'your-api-key',
@@ -73,7 +73,7 @@ All `call` overloads are fully typed - your editor will autocomplete the correct
 ## Error Handling
 
 ```typescript
-import { CallerSDKError } from 'caller-sdk';
+import { CallerSDKError } from '@zafeguard/caller-sdk';
 
 try {
   await sdk.call(ComponentModule.COMPUTE_EVM_ADDRESS, { publicKey: 'invalid' });
