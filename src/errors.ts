@@ -37,8 +37,13 @@ export class CallerSDKError extends Error {
     this.headers = options.headers;
     this.errors = options.errors ?? [];
 
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, CallerSDKError);
+    // captureStackTrace is V8-only; guard for non-V8 runtimes. (TS 6 lib
+    // dropped this from ErrorConstructor's typing.)
+    const captureStackTrace = (Error as {
+      captureStackTrace?: (target: object, ctor: Function) => void;
+    }).captureStackTrace;
+    if (captureStackTrace) {
+      captureStackTrace(this, CallerSDKError);
     }
   }
 
