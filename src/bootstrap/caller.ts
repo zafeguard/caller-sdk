@@ -330,9 +330,9 @@ class WorkspaceClientImpl extends Client {
 }
 
 /**
- * White Rabbit WorkspaceClient.
+ * Zafeguard WorkspaceClient.
  *
- * Provides a fully-typed client for invoking White Rabbit components and
+ * Provides a fully-typed client for invoking Zafeguard components and
  * choosing between two result-delivery models:
  *
  * | Model | Method | Best for |
@@ -361,7 +361,7 @@ class WorkspaceClientImpl extends Client {
  *
  * ### Authentication
  * Pass your **Workspace API key** (prefixed `wrk_`) as `apiKey`. You can
- * create one in the [White Rabbit Dashboard](https://app.whiterabbit.app)
+ * create one in the [Zafeguard Dashboard](https://app.zafeguard.com)
  * under **Settings → API Keys**.
  */
 export type WorkspaceClient = CallableComponents & WorkspaceClientManagement;
